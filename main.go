@@ -17,6 +17,7 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/", helloHandler)
 	fmt.Println("Server starting on port 5000...")
+	fmt.Println("This is second deployment")
 	err := http.ListenAndServe(":5000", nil)
 	if err != nil {
 		fmt.Println("Error starting server: ", err)
