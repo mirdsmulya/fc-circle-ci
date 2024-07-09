@@ -1,0 +1,76 @@
+version: 2.1
+
+orbs:
+  aws-ecr: circleci/aws-ecr@7.1.0
+  aws-cli: circleci/aws-cli@3.1.0
+
+jobs:
+  test-go:
+    docker:
+      - image: cimg/go:1.22
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: go mod download
+      - run:
+          name: Run tests
+          command: go test ./...
+
+
+  build-and-push-image-to-ecr:
+    environment:
+      AWS_DEFAULT_REGION: "ap-southeast-1"
+      AWS_ECR_ACCOUNT_URL: "675327529402.dkr.ecr.ap-southeast-1.amazonaws.com"
+    docker:
+      - image: cimg/go:1.22
+    steps:
+      - checkout
+      - aws-cli/setup:
+          profile-name: aws
+      - setup_remote_docker
+      - aws-ecr/build-and-push-image:
+          repo: "fast-campus"
+          tag: $CIRCLE_SHA1
+          region: AWS_DEFAULT_REGION
+          dockerfile: "Dockerfile"
+          account-url: AWS_ECR_ACCOUNT_URL
+  
+  deploy-to-eks:
+    docker:
+      - image: mirdsmulya/aws-helm # This is a custom image that contains aws-cli and helm
+    environment:
+      AWS_DEFAULT_REGION: "ap-southeast-1"
+      EKS_CLUSTER_NAME: "fast-campus-cluster"
+      KUBERNETES_NAMESPACE: "app"
+      HELM_CHART_PATH: "deployment/k8s"
+      HELM_CHART_NAME: "hello-world"
+    steps:
+      - checkout
+      - run:
+          name: Update kubeconfig
+          command: aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_DEFAULT_REGION
+      - run:
+          name: Deploy to EKS using Helm
+          command: |
+            helm upgrade --install $HELM_CHART_NAME $HELM_CHART_PATH -f $HELM_CHART_PATH/values.yaml --namespace $KUBERNETES_NAMESPACE --set image.tag=${CIRCLE_SHA1} --create-namespace
+
+workflows:
+  CI-CD-EKS:
+    jobs:
+      - test-go:
+          filters: 
+            branches:
+              only: main
+      - build-and-push-image-to-ecr:
+          requires:
+            - test-go
+          filters:
+            branches:
+              only: main
+      - deploy-to-eks:
+          requires:
+            - build-and-push-image-to-ecr
+          filters:
+            branches:
+              only: main
