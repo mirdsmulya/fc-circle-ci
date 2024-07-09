@@ -41,7 +41,7 @@ jobs:
       - image: mirdsmulya/aws-helm # This is a custom image that contains aws-cli and helm
     environment:
       AWS_DEFAULT_REGION: "ap-southeast-1"
-      EKS_CLUSTER_NAME: "fast-campus-cluster"
+      EKS_CLUSTER_NAME: "fast-campus-cluster-x"
       KUBERNETES_NAMESPACE: "app"
       HELM_CHART_PATH: "deployment/k8s"
       HELM_CHART_NAME: "hello-world"
